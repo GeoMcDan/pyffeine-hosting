@@ -1,0 +1,54 @@
+# ============================================================
+# pyffeine-hosting - live deployment stack
+# OpenWebUI + Cloudflare Tunnel
+# ============================================================
+
+volumes:
+  openwebui_data:
+    external: true
+    name: open_webui_data
+
+networks:
+  internal:
+
+services:
+
+  # -----------------------------
+  # OpenWebUI
+  # -----------------------------
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    restart: unless-stopped
+    environment:
+      - WEBUI_URL=${WEBUI_URL}
+      - DATA_DIR=/data
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=${QDRANT_URI}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - WEBUI_AUTH_TRUSTED_EMAIL_HEADER=Cf-Access-Authenticated-User-Email
+      - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN}
+      - LOG_LEVEL=debug
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - ENABLE_PIPELINES=false
+      - ENABLE_FOLLOW_UP_GENERATION=true
+      - OPENAI_API_BASE_URL=https://api.openai.com/v1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OFFLINE_MODE=false
+    volumes:
+      - openwebui_data:/data
+    networks:
+      - internal
+
+  # -----------------------------
+  # Cloudflare Tunnel
+  # -----------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run --token ${CLOUDFLARED_TOKEN}
+    depends_on:
+      - openwebui
+    networks:
+      - internal

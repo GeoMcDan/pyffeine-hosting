@@ -1,0 +1,11 @@
+# Secrets - never commit
+.env
+
+# Backups / editor files
+*.bak
+*.log
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
