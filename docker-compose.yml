@@ -1,12 +1,15 @@
 # ============================================================
 # pyffeine-hosting - live deployment stack
-# OpenWebUI + Cloudflare Tunnel
+# OpenWebUI + Milvus + Cloudflare Tunnel
 # ============================================================
 
 volumes:
   openwebui_data:
     external: true
     name: ${OPENWEBUI_VOLUME_NAME:?OPENWEBUI_VOLUME_NAME must be set}
+  milvus_data:
+  milvus_etcd_data:
+  milvus_minio_data:
 
 networks:
   internal:
@@ -22,9 +25,9 @@ services:
     environment:
       - WEBUI_URL=${WEBUI_URL}
       - DATA_DIR=/data
-      - VECTOR_DB=qdrant
-      - QDRANT_URI=${QDRANT_URI}
-      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - VECTOR_DB=milvus
+      - MILVUS_URI=http://milvus:19530
+      - MILVUS_DB=default
       - WEBUI_AUTH_TRUSTED_EMAIL_HEADER=Cf-Access-Authenticated-User-Email
       - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN}
       - LOG_LEVEL=debug
@@ -38,6 +41,97 @@ services:
       - openwebui_data:/data
     networks:
       - internal
+    depends_on:
+      milvus:
+        condition: service_healthy
+
+  # -----------------------------
+  # Milvus standalone dependencies
+  # -----------------------------
+  milvus-volume-init:
+    image: milvusdb/milvus:v3.0.3
+    user: "0:0"
+    network_mode: none
+    read_only: true
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        uid="$$(id -u milvus)"
+        gid="$$(id -g milvus)"
+        marker="/var/lib/milvus/.milvus-volume-owner-$${uid}-$${gid}"
+        if [ ! -e "$${marker}" ]; then
+          chown -R "$${uid}:$${gid}" /var/lib/milvus
+          touch "$${marker}"
+          chown "$${uid}:$${gid}" "$${marker}"
+        fi
+    volumes:
+      - milvus_data:/var/lib/milvus
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    volumes:
+      - milvus_etcd_data:/etcd
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: milvusdb/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: minio server /minio_data --console-address ":9001"
+    volumes:
+      - milvus_minio_data:/minio_data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    image: milvusdb/milvus:v3.0.3
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      MINIO_REGION: us-east-1
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    networks:
+      - internal
+    depends_on:
+      milvus-volume-init:
+        condition: service_completed_successfully
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
 
   # -----------------------------
   # Cloudflare Tunnel
