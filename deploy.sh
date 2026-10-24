@@ -34,6 +34,7 @@ echo "==> Deploying '$TARGET' (branch: $BRANCH) to $DEPLOY_DIR"
 
 # Sanity checks
 [ -d "$DEPLOY_DIR/.git" ] || { echo "ERROR: $DEPLOY_DIR is not a git clone"; exit 1; }
+[ -f "$DEPLOY_DIR/docker-compose.yml" ] || { echo "ERROR: $DEPLOY_DIR/docker-compose.yml not found"; exit 1; }
 [ -f "$DEPLOY_DIR/.env" ] || { echo "ERROR: $DEPLOY_DIR/.env not found - copy .env.example and fill it in"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not installed"; exit 1; }
 
