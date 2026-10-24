@@ -10,18 +10,18 @@ Docker Compose stack hosting **OpenWebUI** and a private **Milvus** vector datab
 ```mermaid
 flowchart LR
     subgraph GitHub
-        R[GeoMcDan/pyffeine-hosting<br>main = live, dev = development]
+        R["GeoMcDan/pyffeine-hosting<br/>main = live, dev = development"]
     end
     subgraph VPS
-        W[/home/george/pyffeine-hosting<br>working copy]
-        L[/home/george/n8n-compose<br>live deployment - main]
-        D[/home/george/pyffeine-dev<br>dev deployment - dev]
+        W["/home/george/pyffeine-hosting<br/>working copy"]
+        L["/home/george/n8n-compose<br/>live deployment - main"]
+        D["/home/george/pyffeine-dev<br/>dev deployment - dev"]
     end
     R -->|clone| W
     R -->|git pull| L
     R -->|git pull| D
-    L -->|docker compose up -d| LC[openwebui + cloudflared + private Milvus<br>gpt.pyffeine.top]
-    D -->|docker compose up -d| DC[openwebui + cloudflared + private Milvus<br>own .env and volumes]
+    L -->|docker compose up -d| LC["openwebui + cloudflared + private Milvus<br/>gpt.pyffeine.top"]
+    D -->|docker compose up -d| DC["openwebui + cloudflared + private Milvus<br/>own .env and volumes"]
 ```
 
 ## Repo Layout
