@@ -1,9 +1,9 @@
 # pyffeine-hosting
 
-Docker Compose stack hosting **OpenWebUI** behind a **Cloudflare Tunnel** on a Contabo VPS.
+Docker Compose stack hosting **OpenWebUI** and a private **Milvus** vector database behind a **Cloudflare Tunnel** on a Contabo VPS.
 
 - Live site: <https://gpt.pyffeine.top>
-- Stack: `openwebui` (ghcr.io/open-webui/open-webui) + `cloudflared` (cloudflare/cloudflared)
+- Stack: `openwebui` (ghcr.io/open-webui/open-webui), `milvus` (standalone with etcd and MinIO), and `cloudflared` (cloudflare/cloudflared)
 
 ## Architecture
 
@@ -20,19 +20,20 @@ flowchart LR
     R -->|clone| W
     R -->|git pull| L
     R -->|git pull| D
-    L -->|docker compose up -d| LC[openwebui + cloudflared<br>gpt.pyffeine.top]
-    D -->|docker compose up -d| DC[openwebui dev<br>own .env]
+    L -->|docker compose up -d| LC[openwebui + cloudflared + private Milvus<br>gpt.pyffeine.top]
+    D -->|docker compose up -d| DC[openwebui + cloudflared + private Milvus<br>own .env and volumes]
 ```
 
 ## Repo Layout
 
 ```
 .
-├── docker-compose.yml    # canonical stack: openwebui + cloudflared
+├── docker-compose.yml    # openwebui + private Milvus + cloudflared
 ├── .env.example          # template - copy to .env, never commit real .env
 ├── .gitignore            # .env, *.bak, *.log, ...
 ├── deploy.sh             # deploy.sh [live|dev] -> git pull + compose up -d
 ├── pull-images.sh        # pull-images.sh [live|dev] -> pull images, leave stack running
+├── start-stack.sh        # start-stack.sh [live|dev] [--yes] -> local compose up, no Git updates
 └── README.md
 ```
 
@@ -109,12 +110,45 @@ git push origin main
 ./deploy.sh live
 ```
 
-`deploy.sh` runs `git pull` in the target dir, validates with `docker compose config`,
-then applies the configuration with `docker compose up -d`. `pull-images.sh [live|dev]`
-validates the selected deployment's Compose configuration and pulls its configured
-service images without syncing Git or restarting/recreating any containers. Run `deploy.sh`
-afterward when you are ready to apply the images. Since the pull helper intentionally does
-not sync Git, it uses the Compose file currently present in the selected deployment dir.
+`deploy.sh` checks out the target branch in the selected deployment directory, pulls it,
+validates the Compose configuration with `docker compose config`, then applies it with
+`docker compose up -d`.
+
+`pull-images.sh [live|dev]` validates the selected deployment's Compose configuration and
+pulls its configured service images without syncing Git or restarting/recreating any
+containers. Run `deploy.sh` afterward when you are ready to apply the images. Since the
+pull helper intentionally does not sync Git, it uses the Compose file currently present in
+the selected deployment directory.
+
+### Start a stack from local changes
+
+Use `start-stack.sh` to apply the files currently in a deployment directory, including
+staged, unstaged, and untracked changes. It never checks out a branch or pulls Git updates.
+It does fetch the target branch from `origin` to check whether the checkout has diverged.
+It must be run from the exact directory for the selected environment, so selecting
+`live` from `/home/george/pyffeine-dev` is rejected even with `--yes`:
+
+```bash
+cd /home/george/pyffeine-dev
+./start-stack.sh dev
+
+cd /home/george/n8n-compose
+./start-stack.sh live
+```
+
+When the worktree/index is dirty, the checked-out branch is unexpected, `HEAD` differs
+from the fetched `origin/<branch>` commit, or that remote-tracking commit is unavailable,
+the script displays the condition and asks for confirmation. If the fetch fails or no
+tracking commit is available, it warns that divergence could not be checked reliably.
+Pass `--yes` to acknowledge these warnings non-interactively; it does not bypass the
+directory guard.
+
+Before starting, the script validates the resolved Compose configuration and uses the
+environment's fixed project name (`pyffeine-prod` or `pyffeine-dev`). `docker compose
+up -d` can recreate services when configuration changes, and Compose may pull container
+images according to its image/pull policy; the script's no-pull guarantee applies to
+Git only. Review changes carefully, especially volume names, external volumes, ports,
+and tunnel configuration. The script does not run `down` or remove orphaned containers.
 ## Concurrent Development and Production Deployment
 
 Production and development use separate Docker Compose projects, Cloudflare tunnels, application containers, and external Docker volumes.
@@ -151,6 +185,12 @@ docker compose \
 ```
 
 Both projects may run concurrently.
+
+## Milvus Vector Database
+
+OpenWebUI is configured with `VECTOR_DB=milvus` and connects to `http://milvus:19530` using the Compose-internal network. Milvus standalone is backed by etcd and MinIO; their data, along with Milvus local state, is persisted in project-scoped Compose volumes. The Milvus, etcd, and MinIO services publish no host ports and are not routed through Cloudflare Tunnel. Only OpenWebUI is reachable through the tunnel.
+
+The first startup initializes a new Milvus store. Switching OpenWebUI from the previously configured Qdrant service does not copy its existing vectors or knowledge collections. Existing knowledge documents may need to be re-indexed in OpenWebUI; keep the old Qdrant data until the new Milvus-backed setup has been verified. Production and development deployments use separate Compose projects, so their Milvus data volumes are isolated.
 
 
 ## Troubleshooting
