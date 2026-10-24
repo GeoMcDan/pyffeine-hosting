@@ -110,13 +110,43 @@ git push origin main
 
 `deploy.sh` runs `git pull` in the target dir, validates with `docker compose config`,
 then restarts with `docker compose up -d`.
+## Concurrent Development and Production Deployment
 
-## Dev Environment Notes
+Production and development use separate Docker Compose projects, Cloudflare tunnels, application containers, and external Docker volumes.
 
-- The compose file references the external volume `open_webui_data` and the Cloudflare
-  tunnel token. The dev environment currently shares these with live.
-- To fully isolate dev later, parameterize the volume name and tunnel/domain via `.env`
-  (e.g. `OPENWEBUI_VOLUME_NAME` and a separate `CLOUDFLARED_TOKEN` for a dev tunnel).
+| Environment | Hostname | Volume | Tunnel |
+|---|---|---|---|
+| Production | `gpt.pyffeine.top` | `open_webui_data` | Production tunnel |
+| Development | `dev‑gpt.pyffeine.top` | `open_webui_data_dev` | Development tunnel |
+
+Create the development volume once:
+
+```bash
+docker volume create open_webui_data_dev
+```
+
+The volume must exist before starting the development deployment. A newly created development volume contains no Open WebUI data, users, models, or knowledge‑base content. Decide whether development should remain empty or whether data must be copied from production using a controlled backup and restore procedure.
+
+Start production:
+
+```bash
+docker compose \
+  --project-name pyffeine-prod \
+  --env-file .env.prod \
+  up -d
+```
+
+Start development:
+
+```bash
+docker compose \
+  --project-name pyffeine-dev \
+  --env-file .env.dev \
+  up -d
+```
+
+Both projects may run concurrently.
+
 
 ## Troubleshooting
 

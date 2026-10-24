@@ -37,12 +37,19 @@ echo "==> Deploying '$TARGET' (branch: $BRANCH) to $DEPLOY_DIR"
 [ -f "$DEPLOY_DIR/.env" ] || { echo "ERROR: $DEPLOY_DIR/.env not found - copy .env.example and fill it in"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not installed"; exit 1; }
 
+# Determine Compose project name
+case "$TARGET" in
+  live) PROJECT_NAME="pyffeine-prod" ;;
+  dev)  PROJECT_NAME="pyffeine-dev" ;;
+  *)    PROJECT_NAME="pyffeine-$TARGET" ;;
+esac
+
 # Update + restart
 cd "$DEPLOY_DIR"
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
-docker compose config >/dev/null
-docker compose up -d
+docker compose --project-name "$PROJECT_NAME" config >/dev/null
+docker compose --project-name "$PROJECT_NAME" up -d
 
 echo "==> Deploy complete."
 echo "    Status: docker compose ps"
