@@ -6,7 +6,7 @@
 volumes:
   openwebui_data:
     external: true
-    name: open_webui_data
+    name: ${OPENWEBUI_VOLUME_NAME:?OPENWEBUI_VOLUME_NAME must be set}
 
 networks:
   internal:
@@ -18,7 +18,6 @@ services:
   # -----------------------------
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: openwebui
     restart: unless-stopped
     environment:
       - WEBUI_URL=${WEBUI_URL}
@@ -45,7 +44,6 @@ services:
   # -----------------------------
   cloudflared:
     image: cloudflare/cloudflared:latest
-    container_name: cloudflared
     restart: unless-stopped
     command: tunnel run --token ${CLOUDFLARED_TOKEN}
     depends_on:

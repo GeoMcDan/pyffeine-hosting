@@ -34,15 +34,23 @@ echo "==> Deploying '$TARGET' (branch: $BRANCH) to $DEPLOY_DIR"
 
 # Sanity checks
 [ -d "$DEPLOY_DIR/.git" ] || { echo "ERROR: $DEPLOY_DIR is not a git clone"; exit 1; }
+[ -f "$DEPLOY_DIR/docker-compose.yml" ] || { echo "ERROR: $DEPLOY_DIR/docker-compose.yml not found"; exit 1; }
 [ -f "$DEPLOY_DIR/.env" ] || { echo "ERROR: $DEPLOY_DIR/.env not found - copy .env.example and fill it in"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not installed"; exit 1; }
+
+# Determine Compose project name
+case "$TARGET" in
+  live) PROJECT_NAME="pyffeine-prod" ;;
+  dev)  PROJECT_NAME="pyffeine-dev" ;;
+  *)    PROJECT_NAME="pyffeine-$TARGET" ;;
+esac
 
 # Update + restart
 cd "$DEPLOY_DIR"
 git checkout "$BRANCH"
 git pull origin "$BRANCH"
-docker compose config >/dev/null
-docker compose up -d
+docker compose --project-name "$PROJECT_NAME" config >/dev/null
+docker compose --project-name "$PROJECT_NAME" up -d
 
 echo "==> Deploy complete."
 echo "    Status: docker compose ps"

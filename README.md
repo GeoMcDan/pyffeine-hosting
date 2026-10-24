@@ -32,6 +32,7 @@ flowchart LR
 ├── .env.example          # template - copy to .env, never commit real .env
 ├── .gitignore            # .env, *.bak, *.log, ...
 ├── deploy.sh             # deploy.sh [live|dev] -> git pull + compose up -d
+├── pull-images.sh        # pull-images.sh [live|dev] -> pull images, leave stack running
 └── README.md
 ```
 
@@ -109,14 +110,48 @@ git push origin main
 ```
 
 `deploy.sh` runs `git pull` in the target dir, validates with `docker compose config`,
-then restarts with `docker compose up -d`.
+then applies the configuration with `docker compose up -d`. `pull-images.sh [live|dev]`
+validates the selected deployment's Compose configuration and pulls its configured
+service images without syncing Git or restarting/recreating any containers. Run `deploy.sh`
+afterward when you are ready to apply the images. Since the pull helper intentionally does
+not sync Git, it uses the Compose file currently present in the selected deployment dir.
+## Concurrent Development and Production Deployment
 
-## Dev Environment Notes
+Production and development use separate Docker Compose projects, Cloudflare tunnels, application containers, and external Docker volumes.
 
-- The compose file references the external volume `open_webui_data` and the Cloudflare
-  tunnel token. The dev environment currently shares these with live.
-- To fully isolate dev later, parameterize the volume name and tunnel/domain via `.env`
-  (e.g. `OPENWEBUI_VOLUME_NAME` and a separate `CLOUDFLARED_TOKEN` for a dev tunnel).
+| Environment | Hostname | Volume | Tunnel |
+|---|---|---|---|
+| Production | `gpt.pyffeine.top` | `open_webui_data` | Production tunnel |
+| Development | `dev‑gpt.pyffeine.top` | `open_webui_data_dev` | Development tunnel |
+
+Create the development volume once:
+
+```bash
+docker volume create open_webui_data_dev
+```
+
+The volume must exist before starting the development deployment. A newly created development volume contains no Open WebUI data, users, models, or knowledge‑base content. Decide whether development should remain empty or whether data must be copied from production using a controlled backup and restore procedure.
+
+Start production:
+
+```bash
+docker compose \
+  --project-name pyffeine-prod \
+  --env-file .env.prod \
+  up -d
+```
+
+Start development:
+
+```bash
+docker compose \
+  --project-name pyffeine-dev \
+  --env-file .env.dev \
+  up -d
+```
+
+Both projects may run concurrently.
+
 
 ## Troubleshooting
 
