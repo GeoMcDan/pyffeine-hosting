@@ -34,6 +34,7 @@ flowchart LR
 ├── deploy.sh             # deploy.sh [prod|live|dev] -> git pull + compose up -d
 ├── pull-images.sh        # pull-images.sh [prod|live|dev] -> pull images, leave stack running
 ├── start-stack.sh        # start-stack.sh [prod|live|dev] [--yes] -> local compose up, no Git updates
+├── follow-logs.sh        # follow-logs.sh <prod|live|dev> -> follow Compose logs
 └── README.md
 ```
 
@@ -122,6 +123,9 @@ pulls its configured service images without syncing Git or restarting/recreating
 containers. Run `deploy.sh` afterward when you are ready to apply the images. Since the
 pull helper intentionally does not sync Git, it uses the Compose file currently present in
 the selected deployment directory.
+
+Use `follow-logs.sh <prod|live|dev>` to follow logs for the selected deployment. For example,
+`./follow-logs.sh prod` follows the production stack using the `pyffeine-prod` project name.
 
 ### Start a stack from local changes
 
