@@ -2,9 +2,9 @@
 # ============================================================
 # deploy.sh - update a deployment dir and restart the stack
 #
-# Usage:  ./deploy.sh [live|dev]
+# Usage:  ./deploy.sh [prod|live|dev]
 #
-#   live  -> /home/george/n8n-compose   (branch: main)
+#   prod/live -> /home/george/n8n-compose (branch: main)
 #   dev   -> /home/george/pyffeine-dev  (branch: dev)
 #
 # Each deployment dir is a git clone of this repo. The real
@@ -16,7 +16,7 @@ set -euo pipefail
 TARGET="${1:-live}"
 
 case "$TARGET" in
-  live)
+  prod|live)
     DEPLOY_DIR="/home/george/n8n-compose"
     BRANCH="main"
     ;;
@@ -25,7 +25,7 @@ case "$TARGET" in
     BRANCH="dev"
     ;;
   *)
-    echo "Usage: $0 [live|dev]"
+    echo "Usage: $0 [prod|live|dev]"
     exit 1
     ;;
 esac
@@ -40,7 +40,7 @@ command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not installed"; exit 
 
 # Determine Compose project name
 case "$TARGET" in
-  live) PROJECT_NAME="pyffeine-prod" ;;
+  prod|live) PROJECT_NAME="pyffeine-prod" ;;
   dev)  PROJECT_NAME="pyffeine-dev" ;;
   *)    PROJECT_NAME="pyffeine-$TARGET" ;;
 esac
@@ -53,5 +53,5 @@ docker compose --project-name "$PROJECT_NAME" config >/dev/null
 docker compose --project-name "$PROJECT_NAME" up -d
 
 echo "==> Deploy complete."
-echo "    Status: docker compose ps"
-echo "    Logs:   docker compose logs -f"
+echo "    Status: docker compose --project-name \"$PROJECT_NAME\" ps"
+echo "    Logs:   docker compose --project-name \"$PROJECT_NAME\" logs -f"
