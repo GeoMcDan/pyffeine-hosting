@@ -31,10 +31,12 @@ flowchart LR
 ├── docker-compose.yml    # openwebui + private Milvus + cloudflared
 ├── .env.example          # template - copy to .env, never commit real .env
 ├── .gitignore            # .env, *.bak, *.log, ...
-├── deploy.sh             # deploy.sh [prod|live|dev] -> git pull + compose up -d
-├── pull-images.sh        # pull-images.sh [prod|live|dev] -> pull images, leave stack running
-├── start-stack.sh        # start-stack.sh [prod|live|dev] [--yes] -> local compose up, no Git updates
-├── follow-logs.sh        # follow-logs.sh <prod|live|dev> -> follow Compose logs
+├── pyffeine.sh           # unified command entry point
+├── scripts/
+│   ├── deploy.sh          # update deployment and restart stack
+│   ├── pull-images.sh     # pull images without restarting
+│   ├── start-stack.sh     # apply local Compose files without Git updates
+│   └── follow-logs.sh     # follow Compose logs
 └── README.md
 ```
 
@@ -63,7 +65,7 @@ mkdir -p /home/george/pyffeine-hosting
 cd /home/george/pyffeine-hosting
 git init -b main
 git remote add origin git@github.com:GeoMcDan/pyffeine-hosting.git
-# copy the cleaned tree (docker-compose.yml, .env.example, .gitignore, deploy.sh, README.md)
+# copy the cleaned tree, including pyffeine.sh and scripts/
 git add .
 git commit -m "chore: initial clean structure (openwebui + cloudflared)"
 git branch dev
@@ -103,33 +105,33 @@ git checkout dev
 # ... edit files, commit, push ...
 
 # deploy to dev
-./deploy.sh dev
+./pyffeine.sh deploy dev
 
 # merge to main and deploy live
 git checkout main
 git merge dev
 git push origin main
-./deploy.sh live
+./pyffeine.sh deploy live
 # Equivalent production target:
-./deploy.sh prod
+./pyffeine.sh deploy prod
 ```
 
-`deploy.sh` checks out the target branch in the selected deployment directory, pulls it,
+The `deploy` command checks out the target branch in the selected deployment directory, pulls it,
 validates the Compose configuration with `docker compose config`, then applies it with
 `docker compose up -d`.
 
-`pull-images.sh [prod|live|dev]` validates the selected deployment's Compose configuration and
+`./pyffeine.sh pull <prod|live|dev>` validates the selected deployment's Compose configuration and
 pulls its configured service images without syncing Git or restarting/recreating any
-containers. Run `deploy.sh` afterward when you are ready to apply the images. Since the
+containers. Run `./pyffeine.sh deploy` afterward when you are ready to apply the images. Since the
 pull helper intentionally does not sync Git, it uses the Compose file currently present in
 the selected deployment directory.
 
-Use `follow-logs.sh <prod|live|dev>` to follow logs for the selected deployment. For example,
-`./follow-logs.sh prod` follows the production stack using the `pyffeine-prod` project name.
+Use `./pyffeine.sh logs <prod|live|dev>` to follow logs for the selected deployment. For example,
+`./pyffeine.sh logs prod` follows the production stack using the `pyffeine-prod` project name.
 
 ### Start a stack from local changes
 
-Use `start-stack.sh` to apply the files currently in a deployment directory, including
+Use `./pyffeine.sh start <prod|live|dev>` to apply the files currently in a deployment directory, including
 staged, unstaged, and untracked changes. It never checks out a branch or pulls Git updates.
 It does fetch the target branch from `origin` to check whether the checkout has diverged.
 It must be run from the exact directory for the selected environment, so selecting
@@ -137,17 +139,17 @@ It must be run from the exact directory for the selected environment, so selecti
 
 ```bash
 cd /home/george/pyffeine-dev
-./start-stack.sh dev
+./pyffeine.sh start dev
 
 cd /home/george/n8n-compose
-./start-stack.sh prod
+./pyffeine.sh start prod
 ```
 
 When the worktree/index is dirty, the checked-out branch is unexpected, `HEAD` differs
 from the fetched `origin/<branch>` commit, or that remote-tracking commit is unavailable,
 the script displays the condition and asks for confirmation. If the fetch fails or no
 tracking commit is available, it warns that divergence could not be checked reliably.
-Pass `--yes` to acknowledge these warnings non-interactively; it does not bypass the
+Pass `--yes` to `./pyffeine.sh start` to acknowledge these warnings non-interactively; it does not bypass the
 directory guard.
 
 Before starting, the script validates the resolved Compose configuration and uses the
