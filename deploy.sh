@@ -53,5 +53,5 @@ docker compose --project-name "$PROJECT_NAME" config >/dev/null
 docker compose --project-name "$PROJECT_NAME" up -d
 
 echo "==> Deploy complete."
-echo "    Status: docker compose ps"
-echo "    Logs:   docker compose logs -f"
+echo "    Status: docker compose --project-name \"$PROJECT_NAME\" ps"
+echo "    Logs:   docker compose --project-name \"$PROJECT_NAME\" logs -f"
