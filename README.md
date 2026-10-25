@@ -31,9 +31,9 @@ flowchart LR
 ├── docker-compose.yml    # openwebui + private Milvus + cloudflared
 ├── .env.example          # template - copy to .env, never commit real .env
 ├── .gitignore            # .env, *.bak, *.log, ...
-├── deploy.sh             # deploy.sh [live|dev] -> git pull + compose up -d
-├── pull-images.sh        # pull-images.sh [live|dev] -> pull images, leave stack running
-├── start-stack.sh        # start-stack.sh [live|dev] [--yes] -> local compose up, no Git updates
+├── deploy.sh             # deploy.sh [prod|live|dev] -> git pull + compose up -d
+├── pull-images.sh        # pull-images.sh [prod|live|dev] -> pull images, leave stack running
+├── start-stack.sh        # start-stack.sh [prod|live|dev] [--yes] -> local compose up, no Git updates
 └── README.md
 ```
 
@@ -44,7 +44,8 @@ flowchart LR
 | `main` | live (production) | `/home/george/n8n-compose` |
 | `dev`  | development      | `/home/george/pyffeine-dev` |
 
-Work on `dev`, test, then merge to `main` and deploy live.
+`prod` and `live` are equivalent names for the production deployment. Work on `dev`, test,
+then merge to `main` and deploy production.
 
 ## Secrets Handling
 
@@ -108,13 +109,15 @@ git checkout main
 git merge dev
 git push origin main
 ./deploy.sh live
+# Equivalent production target:
+./deploy.sh prod
 ```
 
 `deploy.sh` checks out the target branch in the selected deployment directory, pulls it,
 validates the Compose configuration with `docker compose config`, then applies it with
 `docker compose up -d`.
 
-`pull-images.sh [live|dev]` validates the selected deployment's Compose configuration and
+`pull-images.sh [prod|live|dev]` validates the selected deployment's Compose configuration and
 pulls its configured service images without syncing Git or restarting/recreating any
 containers. Run `deploy.sh` afterward when you are ready to apply the images. Since the
 pull helper intentionally does not sync Git, it uses the Compose file currently present in
@@ -126,14 +129,14 @@ Use `start-stack.sh` to apply the files currently in a deployment directory, inc
 staged, unstaged, and untracked changes. It never checks out a branch or pulls Git updates.
 It does fetch the target branch from `origin` to check whether the checkout has diverged.
 It must be run from the exact directory for the selected environment, so selecting
-`live` from `/home/george/pyffeine-dev` is rejected even with `--yes`:
+`prod` or `live` from `/home/george/pyffeine-dev` is rejected even with `--yes`:
 
 ```bash
 cd /home/george/pyffeine-dev
 ./start-stack.sh dev
 
 cd /home/george/n8n-compose
-./start-stack.sh live
+./start-stack.sh prod
 ```
 
 When the worktree/index is dirty, the checked-out branch is unexpected, `HEAD` differs
