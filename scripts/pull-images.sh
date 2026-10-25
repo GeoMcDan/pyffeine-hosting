@@ -2,9 +2,9 @@
 # ============================================================
 # pull-images.sh - pull images for a deployment without restarting it
 #
-# Usage:  ./pull-images.sh [live|dev]
+# Usage:  ./pull-images.sh [prod|live|dev]
 #
-#   live  -> /home/george/n8n-compose
+#   prod/live -> /home/george/n8n-compose
 #   dev   -> /home/george/pyffeine-dev
 # ============================================================
 set -euo pipefail
@@ -12,7 +12,7 @@ set -euo pipefail
 TARGET="${1:-live}"
 
 case "$TARGET" in
-  live)
+  prod|live)
     DEPLOY_DIR="/home/george/n8n-compose"
     PROJECT_NAME="pyffeine-prod"
     ;;
@@ -21,7 +21,7 @@ case "$TARGET" in
     PROJECT_NAME="pyffeine-dev"
     ;;
   *)
-    echo "Usage: $0 [live|dev]"
+    echo "Usage: $0 [prod|live|dev]"
     exit 1
     ;;
 esac

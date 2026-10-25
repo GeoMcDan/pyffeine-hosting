@@ -3,14 +3,14 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <live|dev> [--yes]" >&2
+  echo "Usage: $0 <prod|live|dev> [--yes]" >&2
 }
 
 TARGET=""
 YES=false
 for arg in "$@"; do
   case "$arg" in
-    live|dev)
+    prod|live|dev)
       if [[ -n "$TARGET" ]]; then usage; exit 2; fi
       TARGET="$arg"
       ;;
@@ -32,7 +32,7 @@ done
 if [[ -z "$TARGET" ]]; then usage; exit 2; fi
 
 case "$TARGET" in
-  live)
+  prod|live)
     DEPLOY_DIR="/home/george/n8n-compose"
     BRANCH="main"
     PROJECT_NAME="pyffeine-prod"
