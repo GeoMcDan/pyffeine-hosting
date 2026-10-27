@@ -4,6 +4,7 @@
 # Backups / editor files
 *.bak
 *.log
+/backups/
 .DS_Store
 
 # IDE

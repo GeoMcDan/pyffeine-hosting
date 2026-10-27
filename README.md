@@ -34,6 +34,7 @@ flowchart LR
 ├── deploy.sh             # deploy.sh [live|dev] -> git pull + compose up -d
 ├── pull-images.sh        # pull-images.sh [live|dev] -> pull images, leave stack running
 ├── start-stack.sh        # start-stack.sh [live|dev] [--yes] -> local compose up, no Git updates
+├── copy-openwebui-prod-to-dev.sh # copy production OpenWebUI data to development
 └── README.md
 ```
 
@@ -165,6 +166,16 @@ docker volume create open_webui_data_dev
 ```
 
 The volume must exist before starting the development deployment. A newly created development volume contains no Open WebUI data, users, models, or knowledge‑base content. Decide whether development should remain empty or whether data must be copied from production using a controlled backup and restore procedure.
+
+### Copy production OpenWebUI data to development
+
+From the development deployment directory, run `./copy-openwebui-prod-to-dev.sh` to copy the production OpenWebUI volume into the dev volume. The script resolves the external volume names from each deployment's Compose configuration and refuses to copy into a non-empty dev volume by default. The production volume must exist. If production OpenWebUI is running, the script stops it for a consistent copy and restarts it afterward; if it is already stopped or its container does not exist, the script does not start it. The script refuses to copy if another running container is using the production volume. If the dev volume does not exist, it creates it.
+
+For a deliberate refresh, run `./copy-openwebui-prod-to-dev.sh --replace`. Existing dev data is first backed up to a timestamped archive under `backups/`, then replaced. Keep this backup protected: it contains the OpenWebUI database, user information, and uploaded data. The script briefly stops production OpenWebUI for a consistent copy, stops dev OpenWebUI if it was running, and restarts services it stopped when it exits. Production OpenWebUI will be briefly unavailable. The script does not start a dev stack that was not already running.
+
+If copying fails partway through, the script attempts to restart any services it stopped, but the dev volume may contain a partial copy. With `--replace`, the pre-copy dev archive remains in `backups/`; rerunning with `--replace` retries the copy, or restore that archive manually if you need the old dev contents.
+
+Run the script from `/home/george/pyffeine-dev`. Production must be deployed at `/home/george/n8n-compose`, both environments must use the same Docker daemon, and Docker Compose v2 plus Python 3 must be installed. Only the OpenWebUI `/data` volume is copied; Milvus vectors and etcd/MinIO state are not copied. Dev's configured secret key, hostname, and other environment settings remain in effect.
 
 Start production:
 
