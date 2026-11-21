@@ -36,7 +36,8 @@ flowchart LR
 │   ├── deploy.sh          # update deployment and restart stack
 │   ├── pull-images.sh     # pull images without restarting
 │   ├── start-stack.sh     # apply local Compose files without Git updates
-│   └── follow-logs.sh     # follow Compose logs
+│   ├── follow-logs.sh     # follow Compose logs
+│   └── backup-openwebui-uploads.sh # extract uploaded source files from a deployment volume
 └── README.md
 ```
 
@@ -194,6 +195,32 @@ docker compose \
 ```
 
 Both projects may run concurrently.
+
+## Uploaded Source-File Backups
+
+Open WebUI uses `DATA_DIR=/data`, mounted from the environment's external Docker
+volume. Uploaded files that can be used as Knowledge sources are stored under
+`/data/uploads`. Back up these files from the working copy with:
+
+```bash
+./pyffeine.sh backup-uploads                 # live environment (default)
+./pyffeine.sh backup-uploads dev
+./pyffeine.sh backup-uploads live --instance pyffeine
+```
+
+The helper reads the selected deployment's Compose file and `.env` to resolve
+the external volume. It extracts only `/data/uploads` as ordinary files under
+`/home/george/openwebui-uploads/<instance>/<environment>/<volume>/<UTC timestamp>/`;
+the backup is outside the repository because uploaded content may be sensitive.
+If Open WebUI is running, the helper stops that service for the snapshot and
+restarts it afterward, including on failure. It refuses to proceed if another
+running container is using the same volume. The backup directories are created
+with private permissions.
+
+This is a first-stage uploaded-file backup, **not a full Knowledge backup or
+restore**. Open WebUI's database contains application and Knowledge metadata,
+and the configured vector store contains indexed data. Neither is included;
+restoring uploads alone does not recreate Knowledge entries or their index.
 
 ## Milvus Vector Database
 

@@ -5,13 +5,14 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 
 usage() {
   cat >&2 <<EOF
-Usage: $0 <deploy|pull|start|logs> [arguments...]
+Usage: $0 <deploy|pull|start|logs|backup-uploads> [arguments...]
 
 Commands:
   deploy <prod|live|dev>        Update checkout and restart the deployment
   pull <prod|live|dev>          Pull images without restarting containers
   start <prod|live|dev> [--yes] Start the local checkout without Git updates
   logs <prod|live|dev>          Follow deployment logs
+  backup-uploads [prod|live|dev] [--instance NAME] Back up Open WebUI uploaded source files
 EOF
 }
 
@@ -28,6 +29,7 @@ case "$COMMAND" in
   pull)   SCRIPT="pull-images.sh" ;;
   start)  SCRIPT="start-stack.sh" ;;
   logs)   SCRIPT="follow-logs.sh" ;;
+  backup-uploads) SCRIPT="backup-openwebui-uploads.sh" ;;
   -h|--help|help)
     usage
     exit 0
